@@ -1,0 +1,86 @@
+﻿@page "/audio"
+@using MauiBlazorLocalMediaFile.Utilities
+
+<h1>Audio</h1>
+
+<audio src="@Src" controls></audio>
+
+<div style="word-break: break-all;">Src="@Src"</div>
+
+<button class="btn btn-primary" @onclick="()=>Pick(true)">选中并复制到AppDataDirectory</button>
+@if (OperatingSystem.IsWindows())
+{
+    <button class="btn btn-primary" @onclick="()=>Pick(false)">只选中不复制(仅限Windows)</button>
+}
+
+@code {
+    private string? Src;
+
+    private async void Pick(bool copy)
+    {
+        var path = await PickAudioAsync();
+        if (path is null)
+        {
+            return;
+        }
+
+        if (copy)
+        {
+            var targetDirectoryPath = Path.Combine(FileSystem.AppDataDirectory, "Audio");
+            Src = await MediaResourceFile.CreateMediaResourceFileAsync(targetDirectoryPath, path);
+        }
+        else
+        {
+            Src = MauiBlazorWebViewHandler.FilePathToUrlRelativePath(path);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public Task<string?> PickAudioAsync()
+    {
+        var suffixNames = new[] { ".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac" };
+        var mimeTypes = new[] { "audio/mpeg", "audio/wav", "audio/mp4", "audio/ogg", "audio/aac", "audio/flac" };
+        var utType = new[] { "public.mp3", "public.wav", "public.mpeg-4-audio", "public.ogg", "public.aac", "public.flac", };
+        var customFileType = new FilePickerFileType(
+            new Dictionary<DevicePlatform, IEnumerable<string>>()
+                {
+                { DevicePlatform.iOS, utType }, // UTType values
+                { DevicePlatform.Android, mimeTypes }, // MIME type
+                { DevicePlatform.WinUI, suffixNames }, // file extension
+                { DevicePlatform.Tizen, new[] { "*/*" } },
+                { DevicePlatform.macOS, utType }, // UTType values
+                }
+        );
+
+        PickOptions options = new()
+            {
+                FileTypes = customFileType,
+            };
+        return PickFileAsync(options, suffixNames);
+    }
+
+    private async Task<string?> PickFileAsync(PickOptions options, string[] suffixNames)
+    {
+        try
+        {
+            var result = await FilePicker.Default.PickAsync(options);
+            if (result != null)
+            {
+                foreach (var suffixName in suffixNames)
+                {
+                    if (result.FileName.EndsWith(suffixName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return result.FullPath;
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            //Logger.LogError(e, $"{nameof(PickFileAsync)} wrong");
+        }
+
+        return null;
+    }
+}

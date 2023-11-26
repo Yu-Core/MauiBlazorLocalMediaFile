@@ -1,0 +1,40 @@
+﻿@page "/video"
+@using MauiBlazorLocalMediaFile.Utilities
+
+<h1>Video</h1>
+
+<video src="@Src" controls style="max-width:100%;"></video>
+
+<div style="word-break: break-all;">Src="@Src"</div>
+
+<button class="btn btn-primary" @onclick="()=>Pick(true)">选中并复制到AppDataDirectory</button>
+@if (OperatingSystem.IsWindows())
+{
+    <button class="btn btn-primary" @onclick="()=>Pick(false)">只选中不复制(仅限Windows)</button>
+}
+
+@code {
+    private string? Src;
+
+    private async void Pick(bool copy)
+    {
+        var result = await MediaPicker.Default.PickVideoAsync();
+        var path = result?.FullPath;
+        if (path is null)
+        {
+            return;
+        }
+
+        if (copy)
+        {
+            var targetDirectoryPath = Path.Combine(FileSystem.AppDataDirectory, "Video");
+            Src = await MediaResourceFile.CreateMediaResourceFileAsync(targetDirectoryPath, path);
+        }
+        else
+        {
+            Src = MauiBlazorWebViewHandler.FilePathToUrlRelativePath(path);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+}
